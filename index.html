@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <style>
+        body { margin: 0; background: #2c3e50; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
+        #header { background: #1a1a1a; color: white; width: 100%; padding: 12px 0; text-align: center; font-weight: bold; letter-spacing: 1px; z-index: 30; border-bottom: 2px solid #ff8c00; }
+        
+        #court { 
+            position: relative; width: 350px; height: 520px; background: #f3e5ab; 
+            border: 4px solid #333; margin-top: 10px; border-radius: 5px; overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* Accurate Geometry Markings */
+        .court-line { position: absolute; border: 2px solid #333; pointer-events: none; box-sizing: border-box; }
+        
+        /* The Paint / Lane */
+        .c-lane { width: 110px; height: 135px; left: 50%; transform: translateX(-50%); }
+        .c-lane-top { top: 0; border-top: none; }
+        .c-lane-bot { bottom: 0; border-bottom: none; }
+
+        /* Free Throw Line (The "Stripe") */
+        .c-ft-line { width: 110px; height: 0; left: 50%; transform: translateX(-50%); border-bottom: none; }
+        .c-ft-line-top { top: 135px; }
+        .c-ft-line-bot { bottom: 135px; }
+
+        /* Free Throw Circles (The Top of the Key) */
+        .c-ft-circle { width: 110px; height: 110px; border-radius: 50%; left: 50%; transform: translateX(-50%); }
+        .c-ft-circle-top { top: 80px; } /* Half inside lane, half outside */
+        .c-ft-circle-bot { bottom: 80px; }
+
+        /* 3-Point Arcs - Adjusted to meet the top of the FT circle */
+        .c-arc { width: 320px; height: 320px; border-radius: 50%; left: 50%; transform: translateX(-50%); }
+        .c-arc-top { top: -130px; border-top: none; } 
+        .c-arc-bot { bottom: -130px; border-bottom: none; }
+
+        /* Half Court & Center */
+        .c-half { width: 100%; top: 50%; height: 0; border-bottom: none; }
+        .c-center { width: 60px; height: 60px; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+
+        /* Goal Hardware */
+        .c-board { width: 50px; height: 2px; background: #333; left: 50%; transform: translateX(-50%); }
+        .c-rim { width: 12px; height: 12px; border: 2px solid #ff6600; border-radius: 50%; left: 50%; transform: translateX(-50%); }
+        .pos-top { top: 20px; } .pos-bot { bottom: 20px; }
+
+        #drawLayer { position: absolute; top: 0; left: 0; z-index: 5; touch-action: none; }
+
+        .piece { 
+            position: absolute; width: 36px; height: 36px; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; color: white; z-index: 10;
+            touch-action: none; box-shadow: 0 4px 6px rgba(0,0,0,0.4); font-size: 16px;
+        }
+        .red { background: #e74c3c; border: 2px solid #c0392b; }
+        .blue { background: #3498db; border: 2px solid #2980b9; }
+        .ball { width: 26px; height: 26px; background: #f39c12; border: 2px solid #d35400; z-index: 11; border-radius: 50%; }
+        .ball::after { content: '🏀'; font-size: 14px; display: flex; justify-content: center; }
+
+        #controls { 
+            background: #1a1a1a; width: 100%; padding: 15px 0; display: flex; 
+            justify-content: center; gap: 8px; border-top: 2px solid #ff8c00; margin-top: auto; flex-wrap: wrap;
+        }
+        .btn { padding: 8px 12px; border-radius: 4px; background: #444; color: white; border: none; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .btn-active { background: #ff8c00; color: #000; }
+        #saveBtn { background: #27ae60; }
+        #playSelect { padding: 8px; font-size: 12px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div id="header">BASKETBALL TACTICS</div>
+
+<div id="court">
+    <div class="court-line c-half"></div>
+    <div class="court-line c-center"></div>
+    
+    <div class="court-line c-lane c-lane-top"></div>
+    <div class="court-line c-ft-line c-ft-line-top"></div>
+    <div class="court-line c-ft-circle c-ft-circle-top"></div>
+    <div class="court-line c-arc c-arc-top"></div>
+    <div class="court-line c-board pos-top"></div>
+    <div class="court-line c-rim pos-top" style="top: 23px;"></div>
+
+    <div class="court-line c-lane c-lane-bot"></div>
+    <div class="court-line c-ft-line c-ft-line-bot"></div>
+    <div class="court-line c-ft-circle c-ft-circle-bot"></div>
+    <div class="court-line c-arc c-arc-bot"></div>
+    <div class="court-line c-board pos-bot"></div>
+    <div class="court-line c-rim pos-bot" style="bottom: 23px;"></div>
+    
+    <canvas id="drawLayer"></canvas>
+    <div id="pieces-layer"></div>
+</div>
+
+<div id="controls">
+    <button class="btn btn-active" id="blackBtn" onclick="setTool('draw', 'black')">Black</button>
+    <button class="btn" id="redBtn" onclick="setTool('draw', '#e74c3c')">Red</button>
+    <button class="btn" id="eraseBtn" onclick="setTool('erase')">Eraser</button>
+    <button class="btn" onclick="clearCanvas()">Clear Ink</button>
+    <button class="btn" onclick="initGame()">Reset Pieces</button>
+    <button class="btn" id="saveBtn" onclick="savePlay()">Save</button>
+    <select id="playSelect" onchange="loadPlay()">
+        <option value="">Load Play...</option>
+    </select>
+</div>
+
+<script>
+    const layer = document.getElementById('pieces-layer');
+    const court = document.getElementById('court');
+    const canvas = document.getElementById('drawLayer');
+    const ctx = canvas.getContext('2d');
+    const playSelect = document.getElementById('playSelect');
+    
+    let isDrawing = false;
+    let currentTool = 'draw';
+    let currentColor = 'black';
+
+    function initCanvas() {
+        canvas.width = court.clientWidth;
+        canvas.height = court.clientHeight;
+        ctx.lineCap = 'round';
+        ctx.lineWidth = 3;
+    }
+
+    function setTool(tool, color) {
+        currentTool = tool;
+        if(color) currentColor = color;
+        document.getElementById('blackBtn').classList.toggle('btn-active', tool === 'draw' && currentColor === 'black');
+        document.getElementById('redBtn').classList.toggle('btn-active', tool === 'draw' && currentColor !== 'black');
+        document.getElementById('eraseBtn').classList.toggle('btn-active', tool === 'erase');
+    }
+
+    function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+    canvas.onpointerdown = (e) => {
+        isDrawing = true;
+        ctx.beginPath();
+        ctx.moveTo(e.offsetX, e.offsetY);
+    };
+
+    canvas.onpointermove = (e) => {
+        if (!isDrawing) return;
+        ctx.globalCompositeOperation = currentTool === 'erase' ? 'destination-out' : 'source-over';
+        ctx.strokeStyle = currentColor;
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+    };
+
+    canvas.onpointerup = () => { isDrawing = false; };
+
+    function createPiece(type, num, x, y) {
+        const p = document.createElement('div');
+        p.className = `piece ${type}`;
+        p.dataset.type = type;
+        p.dataset.num = num;
+        if (type !== 'ball') p.innerText = num;
+        p.style.left = x + 'px';
+        p.style.top = y + 'px';
+        
+        p.onpointerdown = (e) => {
+            e.stopPropagation();
+            p.setPointerCapture(e.pointerId);
+            p.onpointermove = (ev) => {
+                const rect = court.getBoundingClientRect();
+                p.style.left = (ev.clientX - rect.left - (p.offsetWidth/2)) + 'px';
+                p.style.top = (ev.clientY - rect.top - (p.offsetHeight/2)) + 'px';
+            };
+            p.onpointerup = () => { p.onpointermove = null; };
+        };
+        layer.appendChild(p);
+    }
+
+    function initGame() {
+        layer.innerHTML = '';
+        clearCanvas();
+        createPiece('ball', '', 162, 247);
+        const redPos = [[157, 390], [50, 320], [260, 320], [80, 180], [230, 180]];
+        for(let i=0; i<5; i++) createPiece('red', i+1, redPos[i][0], redPos[i][1]);
+        const bluePos = [[157, 100], [50, 50], [260, 50], [40, 210], [270, 210]];
+        for(let i=0; i<5; i++) createPiece('blue', i+1, bluePos[i][0], bluePos[i][1]);
+    }
+
+    function savePlay() {
+        const name = prompt("Name this play:");
+        if (!name) return;
+        const pieces = [];
+        document.querySelectorAll('.piece').forEach(p => {
+            pieces.push({ type: p.dataset.type, num: p.dataset.num, x: p.style.left, y: p.style.top });
+        });
+        const drawing = canvas.toDataURL();
+        localStorage.setItem('BB_PLAY_' + name, JSON.stringify({ pieces, drawing }));
+        updatePlayList();
+    }
+
+    function updatePlayList() {
+        playSelect.innerHTML = '<option value="">Load Play...</option>';
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith('BB_PLAY_')) {
+                const option = document.createElement('option');
+                option.value = key;
+                option.innerText = key.replace('BB_PLAY_', '');
+                playSelect.appendChild(option);
+            }
+        }
+    }
+
+    function loadPlay() {
+        const key = playSelect.value;
+        if (!key) return;
+        const data = JSON.parse(localStorage.getItem(key));
+        layer.innerHTML = '';
+        data.pieces.forEach(p => createPiece(p.type, p.num, parseInt(p.x), parseInt(p.y)));
+        const img = new Image();
+        img.onload = () => { clearCanvas(); ctx.drawImage(img, 0, 0); };
+        img.src = data.drawing;
+    }
+
+    window.onload = () => { initCanvas(); initGame(); updatePlayList(); };
+</script>
+</body>
+</html>
