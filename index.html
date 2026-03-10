@@ -45,21 +45,30 @@
         .ball { width: 26px; height: 26px; background: #f39c12; border: 2px solid #d35400; z-index: 11; border-radius: 50%; }
         .ball::after { content: '🏀'; font-size: 14px; display: flex; justify-content: center; }
 
-        /* Updated Controls Position to match your green ink marking */
+        /* Controls Container */
         #controls { 
             width: 360px;
             padding: 10px 0; 
             display: flex; 
-            justify-content: center; 
-            gap: 5px; 
-            margin-top: 10px; /* Moves it into the gap below the court */
-            flex-wrap: wrap;
+            flex-direction: column; /* Stack the two rows */
+            align-items: center;
+            gap: 8px; 
+            margin-top: 10px; 
             z-index: 40;
         }
+
+        /* Control Rows */
+        .control-row {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            width: 100%;
+        }
+
         .btn { padding: 8px 10px; border-radius: 4px; background: #444; color: white; border: none; font-size: 11px; font-weight: bold; cursor: pointer; }
         .btn-active { background: #ff8c00; color: #000; }
-        #saveBtn { background: #27ae60; }
-        #playSelect { padding: 7px; font-size: 11px; border-radius: 4px; border: none; background: #fff; width: 100px; }
+        #saveBtn { background: #27ae60; flex-grow: 0; }
+        #playSelect { padding: 7px; font-size: 11px; border-radius: 4px; border: none; background: #fff; width: 120px; }
     </style>
 </head>
 <body>
@@ -86,15 +95,20 @@
 </div>
 
 <div id="controls">
-    <button class="btn btn-active" id="blackBtn" onclick="setTool('draw', 'black')">Black</button>
-    <button class="btn" id="redBtn" onclick="setTool('draw', '#e74c3c')">Red</button>
-    <button class="btn" id="eraseBtn" onclick="setTool('erase')">Eraser</button>
-    <button class="btn" onclick="clearCanvas()">Clear Ink</button>
-    <button class="btn" onclick="initGame()">Reset</button>
-    <button class="btn" id="saveBtn" onclick="savePlay()">Save</button>
-    <select id="playSelect" onchange="loadPlay()">
-        <option value="">Load...</option>
-    </select>
+    <div class="control-row">
+        <button class="btn" id="saveBtn" onclick="savePlay()">Save Play</button>
+        <select id="playSelect" onchange="loadPlay()">
+            <option value="">Load Play...</option>
+        </select>
+    </div>
+    
+    <div class="control-row">
+        <button class="btn btn-active" id="blackBtn" onclick="setTool('draw', 'black')">Black</button>
+        <button class="btn" id="redBtn" onclick="setTool('draw', '#e74c3c')">Red</button>
+        <button class="btn" id="eraseBtn" onclick="setTool('erase')">Eraser</button>
+        <button class="btn" onclick="clearCanvas()">Clear Ink</button>
+        <button class="btn" onclick="initGame()">Reset</button>
+    </div>
 </div>
 
 <script>
@@ -186,7 +200,7 @@
     }
 
     function updatePlayList() {
-        playSelect.innerHTML = '<option value="">Load...</option>';
+        playSelect.innerHTML = '<option value="">Load Play...</option>';
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key.startsWith('BB_PLAY_')) {
